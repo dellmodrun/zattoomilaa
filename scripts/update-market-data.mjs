@@ -1,6 +1,7 @@
 import { writeFile } from 'node:fs/promises';
 
-const mint = '2Hf57RjLFME8VZVfFsGxtSz2rratouuDpTQjrCtipump';
+const mint = process.env.TOKEN_MINT;
+if (!mint) throw new Error('TOKEN_MINT is required');
 const pairsUrl = `https://api.dexscreener.com/token-pairs/v1/solana/${mint}`;
 const pairs = await fetch(pairsUrl).then((response) => {
   if (!response.ok) throw new Error(`DEX Screener ${response.status}`);
