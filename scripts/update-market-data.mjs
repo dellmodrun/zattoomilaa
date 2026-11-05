@@ -11,6 +11,18 @@ const pair = pairs
   .sort((a, b) => Number(b?.liquidity?.usd || 0) - Number(a?.liquidity?.usd || 0))[0];
 if (!pair?.pairAddress) throw new Error('No indexed pool found');
 
+const supplyPayload = await fetch('https://api.mainnet-beta.solana.com', {
+  method: 'POST',
+  headers: { 'content-type': 'application/json' },
+  body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'getTokenSupply', params: [mint, { commitment: 'confirmed' }] }),
+}).then((response) => {
+  if (!response.ok) throw new Error(`Solana RPC ${response.status}`);
+  return response.json();
+});
+if (supplyPayload.error) throw new Error(supplyPayload.error.message || 'Solana RPC failed');
+const supply = Number(supplyPayload?.result?.value?.uiAmountString ?? supplyPayload?.result?.value?.uiAmount);
+const decimals = Number(supplyPayload?.result?.value?.decimals || 0);
+
 const base = `https://api.geckoterminal.com/api/v2/networks/solana/pools/${pair.pairAddress}`;
 const [tradePayload, candlePayload] = await Promise.all([
   fetch(`${base}/trades`).then((response) => {
@@ -61,6 +73,18 @@ await writeFile('market-data.json', `${JSON.stringify({
   pool: pair.pairAddress,
   updatedAt: new Date().toISOString(),
   source: 'GeckoTerminal',
+  snapshot: {
+    price: Number(pair.priceUsd) || 0,
+    supply,
+    decimals,
+    symbol: pair?.baseToken?.address === mint ? pair.baseToken.symbol : pair?.quoteToken?.symbol || null,
+    name: pair?.baseToken?.address === mint ? pair.baseToken.name : pair?.quoteToken?.name || null,
+    slot: supplyPayload?.result?.context?.slot ?? 'confirmed',
+    liquidity: pairs.reduce((sum, item) => sum + Number(item?.liquidity?.usd || 0), 0),
+    volume24h: pairs.reduce((sum, item) => sum + Number(item?.volume?.h24 || 0), 0),
+    trades24h: pairs.reduce((sum, item) => sum + Number(item?.txns?.h24?.buys || 0) + Number(item?.txns?.h24?.sells || 0), 0),
+    pairAddress: pair.pairAddress,
+  },
   trades,
   candles,
 }, null, 2)}\n`);

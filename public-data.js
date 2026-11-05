@@ -49,6 +49,15 @@
 
   async function tokenSnapshot(mint) {
     return cached(`snapshot:${mint}`, 12_000, async () => {
+      const archive = await marketArchive().catch(() => null);
+      if (archive?.mint === mint && archive?.snapshot) {
+        return {
+          mint,
+          ...archive.snapshot,
+          source: 'Published Solana + market snapshot',
+          pairAddress: archive.pool || archive.snapshot.pairAddress || null,
+        };
+      }
       const [supplyResult, pairsResult] = await Promise.all([
         rpc('getTokenSupply', [mint, { commitment: 'confirmed' }]),
         originalFetch(dexBase + encodeURIComponent(mint)).then(async response => {
