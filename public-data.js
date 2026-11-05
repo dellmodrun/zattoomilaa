@@ -2,6 +2,7 @@
   const originalFetch = window.fetch.bind(window);
   const rpcUrl = 'https://api.mainnet-beta.solana.com';
   const dexBase = 'https://api.dexscreener.com/token-pairs/v1/solana/';
+  const geckoBase = 'https://api.geckoterminal.com/api/v2/networks/solana/pools/';
   const zcashStatsUrl = 'https://api.blockchair.com/zcash/stats';
   const cache = new Map();
 
@@ -66,7 +67,58 @@
         volume24h: pairs.reduce((sum, item) => sum + Number(item?.volume?.h24 || 0), 0),
         trades24h: pairs.reduce((sum, item) => sum + Number(item?.txns?.h24?.buys || 0) + Number(item?.txns?.h24?.sells || 0), 0),
         source: 'Solana RPC + DEX Screener',
+        pairAddress: pair?.pairAddress || null,
       };
+    });
+  }
+
+  async function poolTrades(snapshot, mint) {
+    if (!snapshot.pairAddress) return [];
+    return cached(`trades:${snapshot.pairAddress}`, 12_000, async () => {
+      const response = await originalFetch(`${geckoBase}${encodeURIComponent(snapshot.pairAddress)}/trades`);
+      if (!response.ok) throw new Error(`GeckoTerminal trades ${response.status}`);
+      const payload = await response.json();
+      return (payload?.data || []).map(row => {
+        const item = row?.attributes || {};
+        const fromIsMint = item.from_token_address === mint;
+        const toIsMint = item.to_token_address === mint;
+        return {
+          txHash: item.tx_hash,
+          blockUnixTime: Math.floor(new Date(item.block_timestamp).getTime() / 1000),
+          side: item.kind,
+          owner: item.tx_from_address,
+          from: {
+            address: item.from_token_address,
+            uiAmount: Number(item.from_token_amount),
+            price: Number(item.price_from_in_usd),
+          },
+          to: {
+            address: item.to_token_address,
+            uiAmount: Number(item.to_token_amount),
+            price: Number(item.price_to_in_usd),
+          },
+          tokenAmount: fromIsMint ? Number(item.from_token_amount) : toIsMint ? Number(item.to_token_amount) : 0,
+          volumeUsd: Number(item.volume_in_usd),
+        };
+      }).filter(item => item.txHash && item.tokenAmount > 0);
+    });
+  }
+
+  async function poolCandles(snapshot) {
+    if (!snapshot.pairAddress) return [];
+    return cached(`candles:${snapshot.pairAddress}`, 45_000, async () => {
+      const query = '?aggregate=1&limit=60&currency=usd&token=base';
+      const response = await originalFetch(`${geckoBase}${encodeURIComponent(snapshot.pairAddress)}/ohlcv/minute${query}`);
+      if (!response.ok) throw new Error(`GeckoTerminal OHLCV ${response.status}`);
+      const payload = await response.json();
+      return (payload?.data?.attributes?.ohlcv_list || []).map(row => ({
+        unixTime: Number(row[0]),
+        o: Number(row[1]),
+        h: Number(row[2]),
+        l: Number(row[3]),
+        c: Number(row[4]),
+        v: Number(row[5]),
+      }));
     });
   }
 
@@ -105,7 +157,13 @@
           trade24h: snapshot.trades24h,
         } });
       }
-      if (endpoint === 'txs' || endpoint === 'holders' || endpoint === 'ohlcv') {
+      if (endpoint === 'txs') {
+        return json({ data: { items: await poolTrades(snapshot, mint) } });
+      }
+      if (endpoint === 'ohlcv') {
+        return json({ data: { items: await poolCandles(snapshot) } });
+      }
+      if (endpoint === 'holders') {
         return json({ data: { items: [] } });
       }
       return json({ error: 'unsupported endpoint' }, 400);
