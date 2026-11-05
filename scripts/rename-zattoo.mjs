@@ -21,11 +21,11 @@ for (const file of await files(root)) {
   let content = await readFile(file, 'utf8');
   const preservedX = ['__PRESERVED_', 'X_LINK__'].join('');
   content = content
-    .replaceAll('https://x.com/zatoshimodel', preservedX)
+    .replaceAll('https://x.com/zattoomillion', preservedX)
     .replaceAll('ZATTOO', 'ZATTOO')
     .replaceAll('Zattoo', 'Zattoo')
     .replaceAll('zattoo', 'zattoo')
-    .replaceAll(preservedX, 'https://x.com/zatoshimodel');
+    .replaceAll(preservedX, 'https://x.com/zattoomillion');
 
   if (file.endsWith('.html')) {
     content = content
