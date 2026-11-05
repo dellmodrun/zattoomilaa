@@ -39,7 +39,7 @@ if (bundle.includes(hydrationNeedle)) {
 }
 bundle = bundle.replace('href:`/favicon.png`', `href:\`${base}/favicon.png\``);
 bundle = bundle.replace('var M_=`modulepreload`,N_=function(e){return`/`+e}', `var M_=\`modulepreload\`,N_=function(e){return\`${base}/\`+e}`);
-bundle = bundle.replace('var $g=`/assets/styles-CR_D-fOd.css`', `var $g=\`${base}/assets/styles-CR_D-fOd.css\``);
+bundle = bundle.replace('$g=`/assets/styles-CR_D-fOd.css`', `$g=\`${base}/assets/styles-CR_D-fOd.css\``);
 if (!bundle.includes(`N_=function(e){return\`${base}/\`+e}`)) {
   throw new Error('Dynamic asset base path was not updated.');
 }
