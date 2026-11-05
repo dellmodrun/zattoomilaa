@@ -6,6 +6,14 @@
   const zcashStatsUrl = 'https://api.blockchair.com/zcash/stats';
   const cache = new Map();
 
+  async function marketArchive() {
+    return cached('market-archive', 55_000, async () => {
+      const response = await originalFetch(`/market-data.json?v=${Math.floor(Date.now() / 60_000)}`, { cache: 'no-store' });
+      if (!response.ok) throw new Error(`Market archive ${response.status}`);
+      return response.json();
+    });
+  }
+
   const configPromise = originalFetch(`/token-config.json?v=${Date.now()}`, { cache: 'no-store' })
     .then(response => response.ok ? response.json() : { mint: null })
     .catch(() => ({ mint: null }));
@@ -75,6 +83,8 @@
   async function poolTrades(snapshot, mint) {
     if (!snapshot.pairAddress) return [];
     return cached(`trades:${snapshot.pairAddress}`, 12_000, async () => {
+      const archive = await marketArchive();
+      if (archive?.pool === snapshot.pairAddress && Array.isArray(archive.trades)) return archive.trades;
       const response = await originalFetch(`${geckoBase}${encodeURIComponent(snapshot.pairAddress)}/trades`);
       if (!response.ok) throw new Error(`GeckoTerminal trades ${response.status}`);
       const payload = await response.json();
@@ -107,6 +117,8 @@
   async function poolCandles(snapshot) {
     if (!snapshot.pairAddress) return [];
     return cached(`candles:${snapshot.pairAddress}`, 45_000, async () => {
+      const archive = await marketArchive();
+      if (archive?.pool === snapshot.pairAddress && Array.isArray(archive.candles)) return archive.candles;
       const query = '?aggregate=1&limit=60&currency=usd&token=base';
       const response = await originalFetch(`${geckoBase}${encodeURIComponent(snapshot.pairAddress)}/ohlcv/minute${query}`);
       if (!response.ok) throw new Error(`GeckoTerminal OHLCV ${response.status}`);

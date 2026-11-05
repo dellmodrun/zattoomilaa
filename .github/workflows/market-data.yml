@@ -1,0 +1,26 @@
+name: Refresh market data
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node scripts/update-market-data.mjs
+      - name: Commit refreshed data
+        run: |
+          git config user.name "zattoo market bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add market-data.json
+          git diff --cached --quiet || git commit -m "Refresh live market data"
+          git push
