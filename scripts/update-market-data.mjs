@@ -1,6 +1,7 @@
-import { writeFile } from 'node:fs/promises';
+import { readFile, writeFile } from 'node:fs/promises';
 
-const mint = process.env.TOKEN_MINT;
+const tokenConfig = JSON.parse(await readFile(new URL('../token-config.json', import.meta.url), 'utf8'));
+const mint = process.env.TOKEN_MINT || tokenConfig.mint;
 if (!mint) throw new Error('TOKEN_MINT is required');
 const pairsUrl = `https://api.dexscreener.com/token-pairs/v1/solana/${mint}`;
 const pairs = await fetch(pairsUrl).then((response) => {

@@ -1,11 +1,13 @@
 name: Refresh market data
 
 on:
+  schedule:
+    - cron: '*/5 * * * *'
   workflow_dispatch:
     inputs:
       mint:
         description: Solana token mint
-        required: true
+        required: false
 
 permissions:
   contents: write
