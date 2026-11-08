@@ -1,5 +1,5 @@
 (() => {
-  const mint = null;
+  const mint = '6XiVCgy8RkyRRABex6ZHDtD8SVNdFcs5UxLfJKENpump';
   const originalFetch = window.fetch.bind(window);
   window.__ZATTOO_LOCAL_MINT__ = mint;
 
